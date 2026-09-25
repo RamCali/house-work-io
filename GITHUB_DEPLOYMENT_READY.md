@@ -2,7 +2,7 @@
 
 ## 🎉 Success! Your Code is on GitHub
 
-**Repository:** https://github.com/RamCali/muse-connector
+**Repository:** https://github.com/RamCali/House-Work
 
 All your production-ready code has been pushed to GitHub and is ready to deploy to Vercel.
 
@@ -14,7 +14,7 @@ All your production-ready code has been pushed to GitHub and is ready to deploy 
 
 1. **Click the deploy button:**
    
-   [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FRamCali%2Fmuse-connector&env=DATABASE_URL,NEXTAUTH_SECRET,NEXTAUTH_URL,NEXT_PUBLIC_APP_URL&envDescription=Required%20environment%20variables&project-name=muse-connector&repository-name=muse-connector)
+   [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FRamCali%2FHouse-Work&env=DATABASE_URL,NEXTAUTH_SECRET,NEXTAUTH_URL,NEXT_PUBLIC_APP_URL&envDescription=Required%20environment%20variables&project-name=house-work&repository-name=house-work)
 
 2. **Add required environment variables** when prompted:
    ```
@@ -198,7 +198,7 @@ Use this checklist as you deploy:
 ## 🎉 You're Ready!
 
 Your repository is live at:
-**https://github.com/RamCali/muse-connector**
+**https://github.com/RamCali/House-Work**
 
 ### What to do now:
 

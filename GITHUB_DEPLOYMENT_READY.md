@@ -36,7 +36,7 @@ All your production-ready code has been pushed to GitHub and is ready to deploy 
 1. Go to https://vercel.com/new
 2. Click "Import Project"
 3. Select "Import Git Repository"
-4. Choose `RamCali/muse-connector`
+4. Choose `RamCali/House-Work`
 5. Add environment variables (see above)
 6. Click "Deploy"
 

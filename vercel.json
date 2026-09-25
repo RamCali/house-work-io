@@ -1,0 +1,24 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "NEXTAUTH_SECRET": "@nextauth_secret",
+    "NEXTAUTH_URL": "@nextauth_url",
+    "STRIPE_SECRET_KEY": "@stripe_secret_key",
+    "STRIPE_PUBLISHABLE_KEY": "@stripe_publishable_key",
+    "JOBBER_API_KEY": "@jobber_api_key",
+    "HOUSECALL_PRO_API_KEY": "@housecall_pro_api_key",
+    "RESEND_API_KEY": "@resend_api_key",
+    "NEXT_PUBLIC_APP_URL": "@next_public_app_url"
+  },
+  "crons": [
+    {
+      "path": "/api/cron/process-quotes",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

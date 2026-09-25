@@ -4,6 +4,12 @@
 
 Muse Connector connects homeowners with verified home service contractors through Meta's Muse personal agent platform. Built with consent-first architecture, granular OAuth scopes, and complete audit logging.
 
+## 🚀 **Quick Deploy to Production**
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FRamCali%2Fmuse-connector&env=DATABASE_URL,NEXTAUTH_SECRET,NEXTAUTH_URL,NEXT_PUBLIC_APP_URL&envDescription=Required%20environment%20variables&project-name=muse-connector&repository-name=muse-connector)
+
+**Production ready in 30 minutes!** See **[QUICK_DEPLOY.md](./QUICK_DEPLOY.md)** for step-by-step guide.
+
 ## 🚀 Features
 
 - **OAuth 2.0 Provider** with PKCE for secure agent linking

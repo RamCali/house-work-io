@@ -127,7 +127,7 @@ export const POST = apiHandler(async (
       zipCode: rfq.zipCode,
       description: rfq.description,
       urgency: rfq.urgency,
-      budgetBand: rfq.budgetBand,
+      budgetBand: rfq.budgetBand || undefined,
       customerName: rfq.user.name || undefined,
       customerEmail: rfq.user.email,
       photos: rfq.photos.map(p => p.url),

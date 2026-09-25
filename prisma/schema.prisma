@@ -1,0 +1,237 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User accounts (homeowners)
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  hashedPassword String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  accounts      Account[]
+  sessions      Session[]
+  rfqs          RFQ[]
+  consentLogs   ConsentLog[]
+  
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+// OAuth tokens for API access
+model OAuthToken {
+  id           String   @id @default(cuid())
+  userId       String
+  accessToken  String   @db.Text
+  refreshToken String?  @db.Text
+  scope        String
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+  revokedAt    DateTime?
+  
+  @@index([userId])
+  @@index([accessToken])
+  @@map("oauth_tokens")
+}
+
+// Request for Quote (RFQ)
+model RFQ {
+  id               String   @id @default(cuid())
+  userId           String
+  trade            String
+  zipCode          String
+  description      String   @db.Text
+  urgency          String   // ASAP, WEEK, MONTH, FLEXIBLE
+  budgetBand       String?  // UNDER_1K, 1K_5K, 5K_10K, 10K_PLUS, UNSURE
+  status           String   @default("DRAFT") // DRAFT, PREVIEW, SUBMITTED, QUOTED, ACCEPTED, DECLINED, CANCELLED
+  submittedAt      DateTime?
+  consentedAt      DateTime?
+  consentSnapshot  Json?    // What user consented to share
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photos           RFQPhoto[]
+  quotes           Quote[]
+  shares           RFQShare[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([trade])
+  @@map("rfqs")
+}
+
+model RFQPhoto {
+  id        String   @id @default(cuid())
+  rfqId     String
+  url       String
+  filename  String
+  mimeType  String
+  size      Int
+  createdAt DateTime @default(now())
+  
+  rfq       RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  
+  @@index([rfqId])
+  @@map("rfq_photos")
+}
+
+// Contractors
+model Contractor {
+  id                String   @id @default(cuid())
+  name              String
+  email             String   @unique
+  phone             String?
+  trades            String[] // Array of trades they serve
+  serviceZipCodes   String[] // Array of ZIP codes they serve
+  licenseNumber     String?
+  insuranceOnFile   Boolean  @default(false)
+  verificationStatus String  @default("PENDING") // PENDING, VERIFIED, SUSPENDED
+  isSandbox         Boolean  @default(false) // Test contractors for sandbox mode
+  
+  // Integration details
+  integrationType   String?  // MANUAL, JOBBER, HOUSECALL_PRO
+  integrationConfig Json?    // Provider-specific config
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  quotes            Quote[]
+  shares            RFQShare[]
+  
+  @@index([isSandbox])
+  @@map("contractors")
+}
+
+// Quotes from contractors
+model Quote {
+  id               String   @id @default(cuid())
+  rfqId            String
+  contractorId     String
+  priceAmount      Int      // In cents
+  priceCurrency    String   @default("USD")
+  scope            String   @db.Text
+  estimatedStartDate DateTime?
+  estimatedDuration String? // e.g., "2-3 days"
+  validUntil       DateTime?
+  status           String   @default("PENDING") // PENDING, ACCEPTED, DECLINED, EXPIRED
+  notes            String?  @db.Text
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  acceptedAt       DateTime?
+  declinedAt       DateTime?
+  
+  rfq              RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  contractor       Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  
+  @@index([rfqId])
+  @@index([contractorId])
+  @@index([status])
+  @@map("quotes")
+}
+
+// Tracking which contractors received which RFQs
+model RFQShare {
+  id           String   @id @default(cuid())
+  rfqId        String
+  contractorId String
+  sharedAt     DateTime @default(now())
+  sharedBy     String   // admin user ID or system
+  viewedAt     DateTime?
+  
+  rfq          RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  contractor   Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  
+  @@unique([rfqId, contractorId])
+  @@index([rfqId])
+  @@index([contractorId])
+  @@map("rfq_shares")
+}
+
+// Consent and audit log
+model ConsentLog {
+  id        String   @id @default(cuid())
+  userId    String
+  eventType String   // SHARE, CONTACT, ACCEPT, PAYMENT, REVOKE, DELETE
+  rfqId     String?
+  quoteId   String?
+  scope     String?  // Scopes approved
+  dataSnapshot Json? // What data was shared/accessed
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("consent_logs")
+}
+
+// Admin/operator users (internal)
+model Admin {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  hashedPassword String
+  role          String   @default("OPERATOR") // OPERATOR, ADMIN
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("admins")
+}
+
+// Stripe payment intents (placeholder)
+model PaymentIntent {
+  id                String   @id @default(cuid())
+  stripePaymentIntentId String @unique
+  rfqId             String
+  quoteId           String
+  amount            Int      // In cents
+  currency          String   @default("USD")
+  status            String   // PENDING, SUCCEEDED, FAILED, CANCELLED
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([rfqId])
+  @@index([quoteId])
+  @@map("payment_intents")
+}

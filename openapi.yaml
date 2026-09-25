@@ -1,0 +1,395 @@
+openapi: 3.1.0
+info:
+  title: Muse Connector API
+  version: 1.0.0
+  description: |
+    Agent-friendly API for connecting homeowners with home service contractors.
+    
+    **Authentication:** OAuth 2.0 with PKCE
+    
+    **Key Features:**
+    - Consent-first data sharing
+    - Granular scopes (rfq:read, rfq:write, quotes:read, quotes:accept)
+    - Audit logging for all consequential actions
+    - Preview data before sharing with contractors
+    
+  contact:
+    email: api@museconnector.example
+
+servers:
+  - url: http://localhost:43123/api/v1
+    description: Local development
+  - url: https://api.museconnector.example/v1
+    description: Production
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: /oauth/authorize
+          tokenUrl: /oauth/token
+          scopes:
+            rfq:read: View service requests and their status
+            rfq:write: Create and manage service requests
+            quotes:read: View quotes from contractors
+            quotes:accept: Accept or decline quotes
+            profile:read: View profile and consent history
+
+  schemas:
+    RFQ:
+      type: object
+      properties:
+        id:
+          type: string
+        trade:
+          type: string
+          enum: [HVAC, PLUMBING, ROOFING, ELECTRICAL, GENERAL_CONTRACTOR]
+        zipCode:
+          type: string
+          pattern: '^\d{5}$'
+        description:
+          type: string
+        urgency:
+          type: string
+          enum: [ASAP, WEEK, MONTH, FLEXIBLE]
+        budgetBand:
+          type: string
+          enum: [UNDER_1K, 1K_5K, 5K_10K, 10K_PLUS, UNSURE]
+        status:
+          type: string
+          enum: [DRAFT, PREVIEW, SUBMITTED, QUOTED, ACCEPTED, DECLINED, CANCELLED]
+        submittedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Photo'
+        quotes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Quote'
+
+    Quote:
+      type: object
+      properties:
+        id:
+          type: string
+        rfqId:
+          type: string
+        contractor:
+          $ref: '#/components/schemas/Contractor'
+        priceAmount:
+          type: integer
+          description: Price in cents
+        priceCurrency:
+          type: string
+        scope:
+          type: string
+        estimatedStartDate:
+          type: string
+          format: date-time
+        estimatedDuration:
+          type: string
+        validUntil:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [PENDING, ACCEPTED, DECLINED, EXPIRED]
+        createdAt:
+          type: string
+          format: date-time
+
+    Contractor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        licenseNumber:
+          type: string
+        insuranceOnFile:
+          type: boolean
+        verificationStatus:
+          type: string
+          enum: [PENDING, VERIFIED, SUSPENDED]
+
+    Photo:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        filename:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+paths:
+  /rfqs:
+    get:
+      summary: List RFQs
+      description: Get all service requests for the authenticated user
+      security:
+        - oauth2: [rfq:read]
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rfqs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RFQ'
+
+    post:
+      summary: Create RFQ
+      description: Create a new service request (draft)
+      security:
+        - oauth2: [rfq:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trade, zipCode, description, urgency]
+              properties:
+                trade:
+                  type: string
+                  enum: [HVAC, PLUMBING, ROOFING, ELECTRICAL, GENERAL_CONTRACTOR]
+                zipCode:
+                  type: string
+                  pattern: '^\d{5}$'
+                description:
+                  type: string
+                urgency:
+                  type: string
+                  enum: [ASAP, WEEK, MONTH, FLEXIBLE]
+                budgetBand:
+                  type: string
+                  enum: [UNDER_1K, 1K_5K, 5K_10K, 10K_PLUS, UNSURE]
+      responses:
+        '201':
+          description: RFQ created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rfq:
+                    $ref: '#/components/schemas/RFQ'
+
+  /rfqs/{id}:
+    get:
+      summary: Get RFQ
+      security:
+        - oauth2: [rfq:read]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rfq:
+                    $ref: '#/components/schemas/RFQ'
+
+    patch:
+      summary: Update RFQ
+      security:
+        - oauth2: [rfq:write]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                urgency:
+                  type: string
+                budgetBand:
+                  type: string
+      responses:
+        '200':
+          description: Updated
+
+    delete:
+      summary: Cancel RFQ
+      security:
+        - oauth2: [rfq:write]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cancelled
+
+  /rfqs/{id}/preview:
+    get:
+      summary: Preview data sharing
+      description: |
+        Preview exactly what will be shared with contractors before consent.
+        Returns the data snapshot and list of contractors who would receive it.
+      security:
+        - oauth2: [rfq:read]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Preview data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  preview:
+                    type: object
+
+  /rfqs/{id}/submit:
+    post:
+      summary: Submit RFQ with consent
+      description: |
+        **CONSEQUENTIAL ACTION** - Explicit user consent required.
+        
+        Shares the RFQ with selected contractors. This is the primary consent gate.
+        The user must approve sharing their data with specific contractors.
+      security:
+        - oauth2: [rfq:write]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contractorIds, consent]
+              properties:
+                contractorIds:
+                  type: array
+                  items:
+                    type: string
+                consent:
+                  type: boolean
+                  description: User must explicitly consent
+      responses:
+        '200':
+          description: Submitted and shared
+
+  /quotes/{id}/accept:
+    post:
+      summary: Accept quote
+      description: |
+        **CONSEQUENTIAL ACTION** - Requires explicit user approval.
+        
+        Accept a quote from a contractor. This action is logged in the audit trail.
+      security:
+        - oauth2: [quotes:accept]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quote accepted
+
+  /quotes/{id}/decline:
+    post:
+      summary: Decline quote
+      security:
+        - oauth2: [quotes:accept]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quote declined
+
+  /user/revoke:
+    post:
+      summary: Revoke OAuth access
+      description: Revoke all access tokens for the authenticated user
+      security:
+        - oauth2: [profile:read]
+      responses:
+        '200':
+          description: Access revoked
+
+  /user/data:
+    delete:
+      summary: Delete all user data
+      description: |
+        **CONSEQUENTIAL ACTION** - Permanently deletes all user data.
+        Cannot be undone.
+      security:
+        - oauth2: [profile:read]
+      responses:
+        '200':
+          description: Data deleted
+
+  /consent/history:
+    get:
+      summary: Get consent history
+      description: View audit log of all consent events
+      security:
+        - oauth2: [profile:read]
+      responses:
+        '200':
+          description: Consent history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  history:
+                    type: array
+                    items:
+                      type: object
